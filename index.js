@@ -2,6 +2,7 @@ const ModbusBase = require('yeedriver-modbustcpconv');
 const MBase = ModbusBase.ModbusBase;
 const JobQueue = require('qz-jobqueue').JobQueue;
 const _ = require('lodash');
+const P = require('bluebird');
 
 
 
@@ -33,7 +34,7 @@ class SingleModeBus extends ModbusBase {
                     this.curCallIndex++;
                     if (this.curCallIndex >= this.call_buffer.length) {
                         this.curCallIndex = 0;
-                        this.emit('RegRead', {devId:'single' , memories: this.autoReadMaps[single]});
+                        this.emit('RegRead', {devId:'single' , memories: this.autoReadMaps['single']});
                     }
                     this.autoCallHandler = setTimeout(function () {
                         callACState();
@@ -53,6 +54,7 @@ class SingleModeBus extends ModbusBase {
 
     initDriver(options) {
         super.initDriver(options);
+        this.mId = _.isUndefined(options.mID)?"1":options.mID;
 
         if(_.isEmpty(options.sids)){
             this.inOrEx({type: "in", devices: {single:'single'}})
@@ -87,17 +89,17 @@ class SingleModeBus extends ModbusBase {
 
             if(se_def.length == 1){
                 this.call_buffer.push({
-                    type:type
+                    type:type,
                     func:func,
                     reg_start:parseInt(se_def[0]),
                     reg_len:1
                 })
             }else if(se_def.length == 2){
                 this.call_buffer.push({
-                    type:type
+                    type:type,
                     func:func,
                     reg_start:parseInt(se_def[0]),
-                    reg_len:parseInt(se_def[1])-parseInt(se_def[0])
+                    reg_len:parseInt(se_def[1])-parseInt(se_def[0])+1
                 })
             }
         });
@@ -106,53 +108,82 @@ class SingleModeBus extends ModbusBase {
     ReadBI(mapItem,devId){
         let retObj = [];
 
-        _.each(mapItem,(item)=>{
-            retObj.push(this.BI[item]);
-        })
+        for(let i = mapItem.start;i<=mapItem.end;i++) {
+            retObj.push(this.BI[i]);
+        }
 
         return retObj;
     }
 
     WriteBQ(mapItem,values,devId){
 
+        let regvalues = [];
+        for(let i = mapItem.start;i<=mapItem.end;i++) {
+            regvalues.push(values[i]);
+        }
+
         let writeBuf = {
             func:0x0f,
-            reg_start:mapItem[0],
-            reg_values:values
+            reg_start:mapItem.start,
+            reg_values:regvalues,
+            reg_addr:mapItem.start,
+            reg_value:values[mapItem.start]
+
 
         };
-        return this.sendCtl(writeBuf);
+        return this.sendCtrl(writeBuf);
 
     }
 
     WriteBP(mapItem,values,devId){
+
+        let regvalues = [];
+        for(let i = mapItem.start;i<=mapItem.end;i++) {
+            regvalues.push(values[i]);
+        }
+
         let writeBuf = {
             func:0x0f,
-            reg_start:mapItem[0],
-            reg_values:values
+            reg_start:mapItem.start,
+            reg_values:regvalues,
+            reg_addr:mapItem.start,
+            reg_value:values[mapItem.start]
+
 
         };
-        return this.sendCtl(writeBuf);
+        return this.sendCtrl(writeBuf);
+
     }
 
     ReadWI(mapItem,devId){
 
         let retObj = [];
 
-        _.each(mapItem,(item)=>{
-            retObj.push(this.WI[item]);
-        })
+        for(let i = mapItem.start;i<=mapItem.end;i++) {
+            retObj.push(this.WI[i]);
+        }
 
         return retObj;
+
     }
 
     WriteWQ(mapItem,values,devId){
+        let regvalues = [];
+        for(let i = mapItem.start;i<=mapItem.end;i++) {
+            regvalues.push(values[i]);
+        }
+
         let writeBuf = {
             func:0x10,
-            reg_start:mapItem[0],
-            reg_values:values
+            reg_start:mapItem.start,
+            reg_values:regvalues,
+            reg_addr:mapItem.start,
+            reg_value:values[mapItem.start]
+
+
         };
-        return this.sendCtl(writeBuf);
+        return this.sendCtrl(writeBuf);
+
     }
 
     sendCtrl(data){
@@ -169,46 +200,46 @@ class SingleModeBus extends ModbusBase {
 
     doSendData(data){
         if(this.mbClient){
-            this.mbClient.setID(data.ac_devId);
+            this.mbClient.setID(this.mId);
             switch(data.func){
                 case 0x01:
                     return this.mbClient.readCoils(data.reg_start, data.reg_len).then(function(newData){
-                        return newData.data;
+                        return P.resolve(newData.data);
                     });
                     break;
                 case 0x02:
                     return this.mbClient.readDiscreteInputs(data.reg_start, data.reg_len).then(function(newData){
-                        return newData.data;
+                        return P.resolve(newData.data);
                     });
                     break;
                 case 0x03:
                     return this.mbClient.readHoldingRegisters(data.reg_start, data.reg_len).then(function(newData){
-                        return newData.data;
+                        return P.resolve(newData.data);
                     });
                     break;
                 case 0x04:
                     return this.mbClient.readInputRegisters(data.reg_start, data.reg_len).then(function(newData){
-                        return newData.data;
+                        return P.resolve(newData.data);
                     });
                     break;
                 case 0x05:
                     return this.mbClient.writeCoil(data.reg_addr, data.reg_value).then(function(newData){
-                        return newData.data;
+                        return P.resolve(newData.data);
                     });
                     break;
                 case 0x06:
                     return this.mbClient.writeRegister(data.reg_addr, data.reg_value).then(function(newData){
-                        return newData.data;
+                        return P.resolve(newData.data);
                     });
                     break;
                 case 0x0f:
                     return this.mbClient.writeCoils(data.reg_start, data.reg_values).then(function(newData){
-                        return newData.data;
+                        return P.resolve(newData.data);
                     });
                     break;
                 case 0x10:
                     return this.mbClient.writeRegisters(data.reg_start, data.reg_values).then(function(newData){
-                        return newData.data;
+                        return P.resolve(newData.data);
                     });
                     break;
             }

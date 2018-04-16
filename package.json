@@ -20,6 +20,6 @@
     "lodash": "^4.17.5",
     "qz-jobqueue": "^1.0.4",
     "yeedriver-base": "^1.0.10",
-    "yeedriver-modbustcpconv": "^1.1.1"
+    "yeedriver-modbustcpconv": "^1.1.2"
   }
 }
