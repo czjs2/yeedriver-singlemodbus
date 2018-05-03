@@ -115,6 +115,16 @@ class SingleModeBus extends ModbusBase {
         return retObj;
     }
 
+    ReadBQ(mapItem,devId){
+        let retObj = [];
+
+        for(let i = mapItem.start;i<=mapItem.end;i++) {
+            retObj.push(this.BQ[i]);
+        }
+
+        return retObj;
+    }
+
     WriteBQ(mapItem,values,devId){
 
         let regvalues = [];
